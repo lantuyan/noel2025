@@ -133,7 +133,11 @@ start_with_pm2() {
     pm2 delete christmas-tree-3d 2>/dev/null || true
     
     # Update ecosystem config with current port if it exists
-    if [ -f "$APP_DIR/ecosystem.config.js" ]; then
+    if [ -f "$APP_DIR/ecosystem.config.cjs" ]; then
+        # Update port in ecosystem config
+        sed -i "s/--port [0-9]*/--port $PORT/g" "$APP_DIR/ecosystem.config.cjs" 2>/dev/null || true
+        pm2 start ecosystem.config.cjs
+    elif [ -f "$APP_DIR/ecosystem.config.js" ]; then
         # Update port in ecosystem config
         sed -i "s/--port [0-9]*/--port $PORT/g" "$APP_DIR/ecosystem.config.js" 2>/dev/null || true
         pm2 start ecosystem.config.js

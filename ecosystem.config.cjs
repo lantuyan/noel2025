@@ -1,4 +1,4 @@
-export default {
+module.exports = {
   apps: [{
     name: 'christmas-tree-3d',
     script: 'pnpm',

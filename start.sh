@@ -228,7 +228,9 @@ start_with_pm2() {
     pm2 delete christmas-tree-3d 2>/dev/null || true
     
     # Start using ecosystem file if exists, otherwise use direct command
-    if [ -f "$APP_DIR/ecosystem.config.js" ]; then
+    if [ -f "$APP_DIR/ecosystem.config.cjs" ]; then
+        pm2 start ecosystem.config.cjs
+    elif [ -f "$APP_DIR/ecosystem.config.js" ]; then
         pm2 start ecosystem.config.js
     else
         # Fallback: use direct command with proper format
