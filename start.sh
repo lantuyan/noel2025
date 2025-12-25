@@ -83,8 +83,27 @@ install_certbot() {
         print_success "Certbot already installed"
     else
         print_status "Installing Certbot..."
-        sudo apt-get install -y certbot python3-certbot-nginx
+        # Try snap first (recommended method)
+        if command -v snap &> /dev/null; then
+            sudo snap install --classic certbot 2>/dev/null || true
+            sudo ln -sf /snap/bin/certbot /usr/bin/certbot 2>/dev/null || true
+        fi
+        # Fallback to apt
+        if ! command -v certbot &> /dev/null; then
+            sudo apt-get install -y certbot python3-certbot-nginx
+        fi
         print_success "Certbot installed"
+    fi
+    
+    # Ensure nginx plugin is installed
+    print_status "Ensuring Certbot nginx plugin is installed..."
+    if command -v snap &> /dev/null && snap list certbot &> /dev/null; then
+        # For snap-based certbot, the nginx plugin is included
+        print_success "Using snap certbot (nginx plugin included)"
+    else
+        # For apt-based certbot, install the plugin separately
+        sudo apt-get install -y python3-certbot-nginx
+        print_success "Certbot nginx plugin installed"
     fi
 }
 
