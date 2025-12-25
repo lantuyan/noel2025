@@ -1,29 +1,24 @@
 import { useState, useCallback, useEffect } from 'react';
-import { savePhoto, getAllPhotos, clearAllPhotos } from '../utils/imageStorage';
+import { uploadImage } from '../utils/fileUpload';
 
 // Import preset images from assets/images
+// This will automatically pick up new files after reload
 const presetImages = import.meta.glob('../assets/images/*.(jpg|jpeg|png|gif|webp)', { eager: true, import: 'default' }) as Record<string, string>;
 
 export const usePhotos = () => {
   const [photos, setPhotos] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Load preset images and stored images on mount
+  // Load all images from assets/images folder
   useEffect(() => {
-    const loadAllImages = async () => {
+    const loadAllImages = () => {
       try {
-        // Get preset images from assets
-        const presetUrls = Object.values(presetImages);
-
-        // Get stored images from IndexedDB
-        const storedPhotos = await getAllPhotos();
-
-        // Combine: preset first, then stored
-        setPhotos([...presetUrls, ...storedPhotos]);
+        // Get all images from assets folder (includes preset and uploaded)
+        const imageUrls = Object.values(presetImages);
+        setPhotos(imageUrls);
       } catch (error) {
         console.error('Error loading images:', error);
-        // At least load preset images if IndexedDB fails
-        setPhotos(Object.values(presetImages));
+        setPhotos([]);
       } finally {
         setIsLoading(false);
       }
@@ -32,26 +27,21 @@ export const usePhotos = () => {
     loadAllImages();
   }, []);
 
-  const addPhoto = useCallback((file: File) => {
-    return new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = async (e) => {
-        const dataUrl = e.target?.result as string;
-        try {
-          // Save to IndexedDB for persistence
-          await savePhoto(dataUrl);
-          setPhotos((prev) => [...prev, dataUrl]);
-          resolve(dataUrl);
-        } catch (error) {
-          console.error('Error saving photo:', error);
-          // Still add to state even if IndexedDB fails
-          setPhotos((prev) => [...prev, dataUrl]);
-          resolve(dataUrl);
-        }
-      };
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
+  const addPhoto = useCallback(async (file: File): Promise<string> => {
+    try {
+      // Upload file to server (saves to src/assets/images/)
+      const filename = await uploadImage(file);
+      
+      // After successful upload, reload page so Vite can detect the new file
+      // The new file will be loaded by import.meta.glob() on next render
+      window.location.reload();
+      
+      // This won't execute, but needed for type safety
+      return filename;
+    } catch (error) {
+      console.error('Error uploading photo:', error);
+      throw error instanceof Error ? error : new Error('Failed to upload photo');
+    }
   }, []);
 
   const addPhotos = useCallback((files: FileList | File[]) => {
@@ -70,13 +60,10 @@ export const usePhotos = () => {
   }, []);
 
   const clearPhotos = useCallback(async () => {
-    try {
-      await clearAllPhotos();
-    } catch (error) {
-      console.error('Error clearing photos from storage:', error);
-    }
-    // Keep preset images, only clear stored ones
-    setPhotos(Object.values(presetImages));
+    // Note: This only clears from state, not from filesystem
+    // To actually delete files, they need to be removed manually from src/assets/images/
+    // or implement a delete API endpoint
+    setPhotos([]);
   }, []);
 
   return {
