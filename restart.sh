@@ -14,7 +14,7 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 APP_DIR=$(dirname "$(readlink -f "$0")")
-PORT=3000
+PORT=${PORT:-3000}  # Use PORT env var if set, otherwise default to 3000
 
 print_status() {
     echo -e "${BLUE}[*]${NC} $1"
@@ -64,6 +64,46 @@ rebuild_project() {
     print_success "Project rebuilt successfully"
 }
 
+# Check if port is available
+check_port() {
+    local port=$1
+    if command -v lsof &> /dev/null; then
+        if lsof -Pi :$port -sTCP:LISTEN -t >/dev/null 2>&1; then
+            return 1  # Port is in use
+        fi
+    elif command -v netstat &> /dev/null; then
+        if netstat -tuln | grep -q ":$port "; then
+            return 1  # Port is in use
+        fi
+    elif command -v ss &> /dev/null; then
+        if ss -tuln | grep -q ":$port "; then
+            return 1  # Port is in use
+        fi
+    fi
+    return 0  # Port is available
+}
+
+# Find available port starting from given port
+find_available_port() {
+    local start_port=$1
+    local port=$start_port
+    local max_attempts=10
+    local attempt=0
+    
+    while [ $attempt -lt $max_attempts ]; do
+        if check_port $port; then
+            echo $port
+            return 0
+        fi
+        port=$((port + 1))
+        attempt=$((attempt + 1))
+    done
+    
+    # If no port found, return original
+    echo $start_port
+    return 1
+}
+
 # Start with PM2 (preview mode)
 start_with_pm2() {
     print_status "Starting application with PM2..."
@@ -74,10 +114,39 @@ start_with_pm2() {
         npm install -g pm2
     fi
     
-    pm2 start "pnpm run preview -- --host 0.0.0.0 --port $PORT" --name christmas-tree-3d
+    # Check if port is available, find alternative if needed
+    if ! check_port $PORT; then
+        print_warning "Port $PORT is already in use. Finding alternative port..."
+        AVAILABLE_PORT=$(find_available_port $PORT)
+        if [ "$AVAILABLE_PORT" != "$PORT" ]; then
+            print_status "Using port $AVAILABLE_PORT instead of $PORT"
+            PORT=$AVAILABLE_PORT
+        else
+            print_error "Could not find available port. Port $PORT may be in use."
+            print_status "You can set a custom port with: PORT=3001 ./restart.sh"
+        fi
+    else
+        print_success "Port $PORT is available"
+    fi
+    
+    # Stop existing instance if running
+    pm2 delete christmas-tree-3d 2>/dev/null || true
+    
+    # Update ecosystem config with current port if it exists
+    if [ -f "$APP_DIR/ecosystem.config.js" ]; then
+        # Update port in ecosystem config
+        sed -i "s/--port [0-9]*/--port $PORT/g" "$APP_DIR/ecosystem.config.js" 2>/dev/null || true
+        pm2 start ecosystem.config.js
+    else
+        # Fallback: use direct command with proper format
+        pm2 start pnpm --name christmas-tree-3d -- run preview -- --host 0.0.0.0 --port $PORT
+    fi
     pm2 save
     
     print_success "Application started on port $PORT"
+    print_status "Access at: http://localhost:$PORT"
+    print_status "Check status with: pm2 list"
+    print_status "View logs with: pm2 logs christmas-tree-3d"
 }
 
 # Start dev server

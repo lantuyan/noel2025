@@ -33,7 +33,7 @@ export default defineConfig({
             let savedFilename: string | null = null
             let uploadError: Error | null = null
 
-            bb.on('file', (name, file, info) => {
+            bb.on('file', (_name, file, info) => {
               const { filename, mimeType } = info
               
               // Validate file type

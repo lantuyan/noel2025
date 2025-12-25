@@ -16,7 +16,7 @@ NC='\033[0m' # No Color
 
 DOMAIN="noel.sixpilot.technology"
 APP_DIR=$(dirname "$(readlink -f "$0")")
-PORT=3000
+PORT=${PORT:-3000}  # Use PORT env var if set, otherwise default to 3000
 
 print_status() {
     echo -e "${BLUE}[*]${NC} $1"
@@ -129,6 +129,7 @@ configure_nginx() {
     
     NGINX_CONFIG="/etc/nginx/sites-available/$DOMAIN"
     
+    # Use eval to expand PORT variable in heredoc
     sudo tee "$NGINX_CONFIG" > /dev/null << EOF
 server {
     listen 80;
@@ -150,6 +151,20 @@ server {
     location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
         expires 1y;
         add_header Cache-Control "public, immutable";
+    }
+
+    # Proxy API upload requests to Vite preview server
+    location /api/ {
+        proxy_pass http://localhost:${PORT};
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_cache_bypass \$http_upgrade;
+        client_max_body_size 10M;
     }
 
     # Handle SPA routing
@@ -212,14 +227,21 @@ start_with_pm2() {
     # Stop existing instance if running
     pm2 delete christmas-tree-3d 2>/dev/null || true
     
-    # Start preview server
-    pm2 start "pnpm run preview -- --host 0.0.0.0 --port $PORT" --name christmas-tree-3d
+    # Start using ecosystem file if exists, otherwise use direct command
+    if [ -f "$APP_DIR/ecosystem.config.js" ]; then
+        pm2 start ecosystem.config.js
+    else
+        # Fallback: use direct command with proper format
+        pm2 start pnpm --name christmas-tree-3d -- run preview -- --host 0.0.0.0 --port $PORT
+    fi
     pm2 save
     
     # Setup PM2 to start on boot
     pm2 startup systemd -u $USER --hp $HOME 2>/dev/null || true
     
     print_success "Application started on port $PORT"
+    print_status "Check status with: pm2 list"
+    print_status "View logs with: pm2 logs christmas-tree-3d"
 }
 
 # Main deployment function
@@ -259,6 +281,13 @@ deploy() {
     setup_ssl
     
     echo ""
+    
+    # Start Vite preview server with PM2 for API upload support
+    print_status "Starting Vite preview server for API upload support..."
+    install_pm2
+    start_with_pm2
+    
+    echo ""
     echo -e "${GREEN}============================================${NC}"
     echo -e "${GREEN}  Deployment Complete!                      ${NC}"
     echo -e "${GREEN}============================================${NC}"
@@ -266,6 +295,9 @@ deploy() {
     echo -e "Your site is now available at:"
     echo -e "  ${BLUE}http://$DOMAIN${NC}"
     echo -e "  ${BLUE}https://$DOMAIN${NC} (if SSL was configured)"
+    echo ""
+    echo -e "Vite preview server running on port $PORT for API upload"
+    echo -e "Check PM2 status: ${BLUE}pm2 list${NC}"
     echo ""
 }
 
