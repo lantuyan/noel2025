@@ -3,7 +3,7 @@ import { Canvas } from '@react-three/fiber';
 import * as THREE from 'three';
 import { Experience } from './components/3d';
 import { GestureController } from './components/GestureController';
-import { DebugButton, StatusText, AddPhotoButton, uiStyles } from './components/UI';
+import { DebugButton, StatusText, AddPhotoButton, FullscreenPrompt, uiStyles } from './components/UI';
 import { useSceneState, useDebugMode, useAIStatus, usePhotos, useZoomState, useTheme, useTreeStyle } from './hooks';
 
 // Import Christmas music
@@ -86,6 +86,8 @@ export default function GrandTreeApp() {
       </div>
 
       <StatusText aiStatus={aiStatus} />
+
+      <FullscreenPrompt />
     </div>
   );
 }

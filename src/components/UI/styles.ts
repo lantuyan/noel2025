@@ -21,12 +21,15 @@ export const uiStyles = {
 
   buttonContainer: {
     position: 'absolute',
-    bottom: '32px',
-    right: '32px',
+    bottom: 'max(16px, env(safe-area-inset-bottom, 16px))',
+    right: 'max(16px, env(safe-area-inset-right, 16px))',
+    left: 'max(16px, env(safe-area-inset-left, 16px))',
     zIndex: 10,
     display: 'flex',
     alignItems: 'center',
-    gap: '12px'
+    justifyContent: 'center',
+    gap: '12px',
+    flexWrap: 'wrap'
   } as CSSProperties
 };
 
