@@ -21,9 +21,9 @@ interface ExperienceProps {
 export const Experience = ({ sceneState, photoUrls, zoomState, themeColors, treeStyle }: ExperienceProps) => {
   const treeGroupRef = useRef<THREE.Group>(null);
 
-  // Quay cây chậm liên tục - dừng khi đang zoom
+  // Quay cây chậm liên tục
   useFrame((_, delta) => {
-    if (treeGroupRef.current && !zoomState?.active) {
+    if (treeGroupRef.current) {
       treeGroupRef.current.rotation.y += delta * 0.2; // Quay chậm (0.2 rad/s)
     }
   });
@@ -40,9 +40,9 @@ export const Experience = ({ sceneState, photoUrls, zoomState, themeColors, tree
           <GiftBoxes state={sceneState} themeColors={themeColors} treeStyle={treeStyle} />
           <TopStar state={sceneState} themeColors={themeColors} />
           {/* Render ảnh sau cùng để nổi lên trên */}
-          <PhotoOrnaments 
-            key={photoUrls?.length || 0} 
-            state={sceneState} 
+          <PhotoOrnaments
+            key={photoUrls?.length || 0}
+            state={sceneState}
             photoUrls={photoUrls || []}
             zoomState={zoomState}
           />

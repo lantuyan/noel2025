@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { Canvas } from '@react-three/fiber';
 import * as THREE from 'three';
 import { Experience } from './components/3d';
@@ -5,7 +6,43 @@ import { GestureController } from './components/GestureController';
 import { DebugButton, StatusText, AddPhotoButton, uiStyles } from './components/UI';
 import { useSceneState, useDebugMode, useAIStatus, usePhotos, useZoomState, useTheme, useTreeStyle } from './hooks';
 
+// Import Christmas music
+import christmasMusic from './assets/music/Jingle Bells - Oliver Harkell.mp3';
+
 export default function GrandTreeApp() {
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Setup background music with autoplay and loop
+  useEffect(() => {
+    const audio = new Audio(christmasMusic);
+    audio.loop = true;
+    audio.volume = 0.5;
+    audioRef.current = audio;
+
+    // Try to play immediately (may be blocked by browser)
+    const playAudio = () => {
+      audio.play().catch(() => {
+        // Autoplay was prevented, wait for user interaction
+        const handleInteraction = () => {
+          audio.play();
+          document.removeEventListener('click', handleInteraction);
+          document.removeEventListener('touchstart', handleInteraction);
+          document.removeEventListener('keydown', handleInteraction);
+        };
+        document.addEventListener('click', handleInteraction);
+        document.addEventListener('touchstart', handleInteraction);
+        document.addEventListener('keydown', handleInteraction);
+      });
+    };
+
+    playAudio();
+
+    // Cleanup on unmount
+    return () => {
+      audio.pause();
+      audio.src = '';
+    };
+  }, []);
   const { sceneState, setSceneState, toggleSceneState } = useSceneState();
   const { debugMode, toggleDebugMode } = useDebugMode();
   const { aiStatus, setAiStatus } = useAIStatus();
@@ -23,7 +60,7 @@ export default function GrandTreeApp() {
 
   return (
     <div style={uiStyles.container}>
-      <div 
+      <div
         style={uiStyles.canvasWrapper}
         onDoubleClick={toggleSceneState}>
         <Canvas
